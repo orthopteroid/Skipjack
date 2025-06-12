@@ -20,9 +20,9 @@ The code then determines the time-on-air for a small 16 byte packet to use as th
 Polling quantum 415ms
 ```
 
-Now the intitialization of the SX126x begins. Each line printed here is the chip status <chip mode> <command status> (consult SX126x docs for details) the error code and the line for the message. There are asserts inthe code to ensure that the chip does not get in a bad state. When an assert fails the line will be printed here.
+Now the intitialization of the SX126x begins. Each line printed here is the chip status <chip mode> <command status> (consult SX126x docs for details) the error code and the line for the message. There are asserts in the code to ensure that the chip does not get in a bad state. When an assert fails the line will be printed here.
 
-You can see the chip mode proceeding from 2x (standby in 13 mhz oscillator mode) to 3x (standby in TCXO 33 mhz oscillator mode) to 51 (receiving mode).
+You can see the chip mode proceeding from 2x (standby in 13 mhz oscillator mode) to 3x (standby in TCXO 33 mhz oscillator mode) to 5x (receiving mode).
 
 ```
 status21 err020 X:\proj\Skipjack\SkipjackSX126x.cpp:241
@@ -44,11 +44,11 @@ status31 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:470
 status51 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:490
 ```
 
-Once things ar going the display on the board shows some of the radio settings currently configured as well as results from a status stream coming from the interrupt service routine. The contents of this stream are a bit cryptic without reading the code but the contents basically say that preambles ad packets have been received. In the case below it detected a Preamble, a Valid header and Received a packet of length 0x27, twice (Meshtestic does perform multiple TX on packets so this is normal):
+Once the initialization is complete and the ISR is hooked, the display on the board begins to show results from a status stream coming from the interrupt service routine. The contents of this stream are a bit cryptic without reading the code but the contents basically say that preambles and packets have been received. In the case below it detected a Preamble, a Valid header and Received a packet of length 0x27, twice (Meshtestic does perform multiple TX on packets so this is normal):
 
 ![image](https://github.com/user-attachments/assets/7181cad3-b240-4d4e-827e-3673c4d531e5)
 
-At the same time the interrupt service routine is sending packet contents to the serial port as those packets arrive. Each packet starts with a * and ends with a newline.
+At the same time the interrupt service routine is sending arriving packets that end up on the serial port via another stream. Each packet starts with a * and ends with a newline.
 
 ```
 *FFFFFFFF44B3F693ADDEF3C8610800FC3716DA715E27212365A18A157A865DFD1F71A405A76904
@@ -60,4 +60,4 @@ At the same time the interrupt service routine is sending packet contents to the
 *FFFFFFFFD475491C37CA613A610A00DA084312180DD73EC7671211086415583984401DB1E4B14125F390673E
 ```
 
-The contents of these streams are specific to the SX126x implementation and what is dont with them is specific to the target board - I'm fortunate that with the Heltec I can use the display and the serial port to show different things. Or to take the board mobile without a serial port attached and test my packet capture.
+The contents of these streams are specific to the SX126x implementation and what is done with them is specific to the target board - I'm fortunate that the Heltec I have can use the display and the serial port to show different things. I can also take the board mobile (without a serial port attached) and test my packet capture using just the display.
