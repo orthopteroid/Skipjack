@@ -21,22 +21,22 @@ inline bool CheckTimerExpired(uint32_t& eta, const uint32_t clock, const uint32_
   return true;
 }
 
-template<typename BufType, typename IndexType, uint16_t MaskSize>
+template<uint16_t MaskSize>
 struct RingBuffer
 {
   const static uint16_t Size = 1 << MaskSize;
   const static uint16_t Mask = Size -1;
-  BufType buf[Size];
-  IndexType reader = 0, writer = 0;
+  uint8_t buf[Size];
+  uint16_t reader = 0, writer = 0;
   void reset() { reader = writer = 0; }
   inline uint16_t count()
   { 
     int c = (writer & Mask) - (reader & Mask);
     return (c >= 0) ? c : c + Size;
   }
-  inline BufType read() { return buf[(++reader) & Mask]; }
-  inline void write(BufType t) { buf[(1 + writer++) & Mask] = t; }
-  inline void fill(BufType* pt, uint16_t len)
+  inline uint8_t read() { return buf[(++reader) & Mask]; }
+  inline void write(uint8_t t) { buf[(1 + writer++) & Mask] = t; }
+  inline void fill(uint8_t* pt, uint16_t len)
   {
     // todo: optimize with either one or two memcpy
     int j = writer +1;

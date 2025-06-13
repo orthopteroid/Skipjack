@@ -154,8 +154,8 @@ struct SkipjackSX126x::Impl
 
   // fixed length buffers, long enough for...
   uint8_t isr_packet_buf[256]; // ... the biggest packet
-  RingBuffer<uint8_t, uint16_t, 9/*512 bytes*/> isr_packet_ring; // ... two big packets
-  RingBuffer<char, uint8_t, 6/*64 bytes*/> isr_status_ring; // ... a reasonable number of status messages
+  RingBuffer<9/*512 bytes*/> isr_packet_ring; // ... two big packets
+  RingBuffer<6/*64 bytes*/> isr_status_ring; // ... a reasonable number of status messages
 
   enum RadioStates {
       RadioStateStandby,
