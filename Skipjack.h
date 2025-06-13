@@ -4,6 +4,7 @@
 #define _SKIPJACK_H_
 
 #include <cstdint>
+#include <atomic>
 
 #define LINESTR1(file, line) file ":" #line
 #define LINESTR(file, line) LINESTR1(file, line)
@@ -27,7 +28,8 @@ struct RingBuffer
   const static uint16_t Size = 1 << MaskSize;
   const static uint16_t Mask = Size -1;
   uint8_t buf[Size];
-  uint16_t reader = 0, writer = 0;
+  std::atomic<uint16_t> writer = 0; // only writer need to be atomic, as it is used by both by writer and reader
+  uint16_t reader = 0;
   void reset() { reader = writer = 0; }
   inline uint16_t count()
   { 
