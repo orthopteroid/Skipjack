@@ -10,6 +10,9 @@
 #define LINESTR(file, line) LINESTR1(file, line)
 #define FILE_LINE LINESTR(__FILE__, __LINE__)
 
+namespace Skipjack
+{
+
 struct BUSConfig { int NSS, RESET, BUSY, IRQ; };
 
 // safe from clock wrapping
@@ -47,5 +50,7 @@ struct RingBuffer
     writer += len;
   }
 };
+
+}; // namespace
 
 #endif // _SKIPJACK_H_

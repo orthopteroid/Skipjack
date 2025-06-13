@@ -7,7 +7,10 @@
 
 #include "Skipjack.h"
 
-struct SkipjackSX126xConfig
+namespace Skipjack
+{
+
+struct SX126xConfig
 {
   float frequency_Mhz;
   uint8_t bw_idx, sf_value, cr_index;
@@ -25,16 +28,18 @@ struct SkipjackSX126xConfig
 
   // returns false if error
   bool ChangeConfig(const char* config); // ie "long-fast" or "short-turbo"
-  
+
   bool LDORecomended() const;
   uint32_t msTimeOnAir(uint8_t len) const;
 };
 
-struct SkipjackSX126x
-{
-  SkipjackSX126x(BUSConfig bus, std::function<void(char*)> printlnFn);
+struct SX126xImpl;
 
-  void begin(SkipjackSX126xConfig rc);
+struct SX126x
+{
+  SX126x(BUSConfig bus, std::function<void(char*)> printlnFn);
+
+  void begin(SX126xConfig rc);
 
   uint16_t count_packet_bytes();
   uint8_t read_packet_byte();
@@ -46,8 +51,9 @@ struct SkipjackSX126x
   // This makes the members here the 'interface' for other possible
   // implementations/radios without having to use structural tricks that
   // have conceptual or call-time consequences.
-  struct Impl;
-  Impl* pImpl;
+  SX126xImpl* pImpl;
 };
+
+}; // namespace
 
 #endif //_SKIPJACKSX126X_H

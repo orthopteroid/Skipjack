@@ -5,9 +5,9 @@
 #include <SPI.h>
 #include <atomic>
 
-#include "types.h"
-#include "SX126x.h"
+#include "Skipjack.h"
 #include "SkipjackSX126x.h"
+#include "SX126x.h"
 
 ////////////////////////////////
 // [S1] Semtech DS.SX1261-2.W.APP (r2.2) "60852689.DS_SX1261_2 V2-2.pdf"
@@ -25,6 +25,7 @@
 // [M1] https://github.com/meshtastic
 // [M2] https://meshtastic.org/docs/overview/
 // [M3] https://deepwiki.com/meshtastic/meshtastic/1.2-mesh-network-architecture
+// [M4] https://github.com/meshtastic/firmware/blob/master/src/mesh/RadioInterface.cpp
 
 // prior art on programming the chip
 // https://github.com/gereic/GXAirCom/blob/master/lib/FANETLORA/radio/LoRa.cpp
@@ -58,6 +59,9 @@
   } while(false)
 
 ///////////////////////////////////
+
+namespace Skipjack
+{
 
 const static char hexchar[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
@@ -115,9 +119,7 @@ const static uint16_t symPerBitTable_4096ths[] = {
 
 ////////////////////////////////////
 
-static SkipjackSX126x::Impl *pInstance = 0; // singleton
-
-struct SkipjackSX126x::Impl
+struct SX126xImpl
 {
   // clock can run up to 16Mhz. [S1] p53
   const SPISettings spiSettings = {12'000'000, MSBFIRST, SPI_MODE0};
@@ -145,7 +147,7 @@ struct SkipjackSX126x::Impl
   uint8_t status_rssi = 0;
 
   BUSConfig bus;
-  SkipjackSX126xConfig rc;
+  SX126xConfig rc;
   CADConfig cad; // runtime config dependant upon radio settings
 
   /* Variables used to detect "busy channel" condition for Listen Before Talk. */
@@ -170,8 +172,8 @@ struct SkipjackSX126x::Impl
 
   /////////////////
 
-  Impl(BUSConfig bus, std::function<void(char*)> debug_printlnFn_);
-  void begin(SkipjackSX126xConfig rc);
+  SX126xImpl(BUSConfig bus, std::function<void(char*)> debug_printlnFn_);
+  void begin(SX126xConfig rc);
 
   void Status_Debug(char* context);
   inline bool Status_OK() { return ((status_err == 0) && (status.cmd != (SX126X_STATUS_CMD_FAILED >> 1))); }
@@ -185,6 +187,8 @@ struct SkipjackSX126x::Impl
   void SX126xISR();
 };
 
+static SX126xImpl *pInstance = 0; // singleton
+
 static void isr_trampoline()
 {
   pInstance->SX126xISR();
@@ -192,7 +196,7 @@ static void isr_trampoline()
 
 /////////////
 
-SkipjackSX126x::Impl::Impl(BUSConfig bus_, std::function<void(char*)> debug_printlnFn_)
+SX126xImpl::SX126xImpl(BUSConfig bus_, std::function<void(char*)> debug_printlnFn_)
 {
   bus = bus_;
   debug_printlnFn = debug_printlnFn_;
@@ -208,7 +212,7 @@ SkipjackSX126x::Impl::Impl(BUSConfig bus_, std::function<void(char*)> debug_prin
   pinMode(bus.IRQ, INPUT);
 }
 
-void SkipjackSX126x::Impl::begin(SkipjackSX126xConfig rc_)
+void SX126xImpl::begin(SX126xConfig rc_)
 {
   rc = rc_;
 
@@ -531,7 +535,7 @@ void SkipjackSX126x::Impl::begin(SkipjackSX126xConfig rc_)
   SPIEnd();
 }
 
-void SkipjackSX126x::Impl::Status_Debug(char* context)
+void SX126xImpl::Status_Debug(char* context)
 {
   if(!debug_printlnFn) return;
   SPIBegin();
@@ -543,13 +547,13 @@ void SkipjackSX126x::Impl::Status_Debug(char* context)
   debug_printlnFn(debug_printf_buf);
 }
 
-void SkipjackSX126x::Impl::SPIBegin()
+void SX126xImpl::SPIBegin()
 {
   while(digitalRead(bus.BUSY));
   digitalWrite(bus.NSS, LOW);
   SPI.beginTransaction(spiSettings);
 }
-void SkipjackSX126x::Impl::SPIEnd()
+void SX126xImpl::SPIEnd()
 {
   SPI.endTransaction();
   digitalWrite(bus.NSS, HIGH);
@@ -557,7 +561,7 @@ void SkipjackSX126x::Impl::SPIEnd()
   while(digitalRead(bus.BUSY));
 }
 
-void SkipjackSX126x::Impl::Errata_15_1_2()
+void SX126xImpl::Errata_15_1_2()
 {
   // [S1] p83. when LORA BW is 500khz call this to improve TX modulation quality 
   SPIBegin();
@@ -573,7 +577,7 @@ void SkipjackSX126x::Impl::Errata_15_1_2()
   SPIEnd();
 }
 
-void SkipjackSX126x::Impl::Errata_15_3_2()
+void SX126xImpl::Errata_15_3_2()
 {
   // [S1] p111. when using implicit headers and after receiving rx_done, RX timeout needs to be manually stopped
   // stop count_debuger
@@ -596,7 +600,7 @@ void SkipjackSX126x::Impl::Errata_15_3_2()
   SPIEnd();
 }
 
-void SkipjackSX126x::Impl::Errata_15_4_2()
+void SX126xImpl::Errata_15_4_2()
 {
   // [S1] p111. When exchanging LoRa packets with inverted IQ polarity, some packet losses
   // may be observed for longer packets.
@@ -614,7 +618,7 @@ void SkipjackSX126x::Impl::Errata_15_4_2()
   SPIEnd();
 }
 
-void SkipjackSX126x::Impl::SX126xISR()
+void SX126xImpl::SX126xISR()
 {
   // interrupt service routine. per. antirez freakwan [A1] (BSDv2). C-style comments by antirez.
   SPIBegin();
@@ -725,21 +729,22 @@ void SkipjackSX126x::Impl::SX126xISR()
 
 //////////////////////////
 
-SkipjackSX126x::SkipjackSX126x(BUSConfig bus, std::function<void(char*)> debug_printlnFn)
-  { pImpl = new SkipjackSX126x::Impl(bus, debug_printlnFn); }
-void SkipjackSX126x::begin(SkipjackSX126xConfig rc) { pImpl->begin(rc); }
+SX126x::SX126x(BUSConfig bus, std::function<void(char*)> debug_printlnFn)
+  { pImpl = new SX126xImpl(bus, debug_printlnFn); }
+void SX126x::begin(SX126xConfig rc) { pImpl->begin(rc); }
 
-uint16_t SkipjackSX126x::count_packet_bytes() { return pImpl->isr_packet_ring.count(); }
-uint8_t SkipjackSX126x::read_packet_byte() { return pImpl->isr_packet_ring.read(); }
+uint16_t SX126x::count_packet_bytes() { return pImpl->isr_packet_ring.count(); }
+uint8_t SX126x::read_packet_byte() { return pImpl->isr_packet_ring.read(); }
 
-uint16_t SkipjackSX126x::count_status_bytes() { return pImpl->isr_status_ring.count(); }
-uint8_t SkipjackSX126x::read_status_byte() { return pImpl->isr_status_ring.read(); }
+uint16_t SX126x::count_status_bytes() { return pImpl->isr_status_ring.count(); }
+uint8_t SX126x::read_status_byte() { return pImpl->isr_status_ring.read(); }
 
 //////////////////////////
 
-static const SkipjackSX126xConfig long_fast_20 =
+// for complete information see [M4]
+static const SX126xConfig long_fast_20 =
 {
-  frequency_Mhz: 926.75f, bw_idx:SX126X_LORA_BW_500_0, sf_value:7, cr_index:SX126X_LORA_CR_4_5,
+  frequency_Mhz: 906.875f, bw_idx:SX126X_LORA_BW_250_0, sf_value:11, cr_index:SX126X_LORA_CR_4_5,
 
   header_type:SX126X_LORA_HEADER_EXPLICIT,
   preamble_syms:16, // meshtastic wiki say 16 [M2], code says other things [M1]
@@ -749,11 +754,13 @@ static const SkipjackSX126xConfig long_fast_20 =
   // per antirez application code, we will use infinite timeout
   rx_timeout_sym:SX126X_RX_TIMEOUT_INF, // 0 or -1 or 100 (lora standard per sz127x series docs?)
 
-  tx_power_dbm: -22, tx_ramp_idx:SX126X_PA_RAMP_200U, iq_option:SX126X_LORA_IQ_STANDARD,
+  tx_power_dbm: -22, // no TX, this is presently just a sniffer
+  
+  tx_ramp_idx:SX126X_PA_RAMP_200U, iq_option:SX126X_LORA_IQ_STANDARD,
   gain_boosted:true, cad_moresensitive:true, osc_tcxo:true
 };
 
-bool SkipjackSX126xConfig::ChangeConfig(const char* config)
+bool SX126xConfig::ChangeConfig(const char* config)
 {
   if(strcmp(config,"meshtastic/short-turbo")==0)
   {
@@ -770,11 +777,11 @@ bool SkipjackSX126xConfig::ChangeConfig(const char* config)
     *this = long_fast_20;
     return true;
   }
-  else
-    return false;
+  
+  return false;
 }
 
-bool SkipjackSX126xConfig::LDORecomended() const
+bool SX126xConfig::LDORecomended() const
 {
   // enable LDO when symbol time is >= 16.38ms
   // [S1] p40, p90
@@ -782,7 +789,7 @@ bool SkipjackSX126xConfig::LDORecomended() const
   return (msPerSym_64ths >> 6) > 16 ? true : false;
 }
 
-uint32_t SkipjackSX126xConfig::msTimeOnAir(uint8_t len) const
+uint32_t SX126xConfig::msTimeOnAir(uint8_t len) const
 {
   // this might slightly underestimate the time, but not by more than 10% it seems
   // fixed point version
@@ -806,3 +813,5 @@ uint32_t SkipjackSX126xConfig::msTimeOnAir(uint8_t len) const
 
   return msOnAir_64ths >> 6;
 }
+
+}; // namespace

@@ -12,9 +12,9 @@
 
 SSD1306Wire Display(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
 
-BUSConfig bus = { NSS:SS, RESET:RST_LoRa, BUSY:BUSY_LoRa, IRQ:DIO0 };
+Skipjack::BUSConfig bus = { NSS:SS, RESET:RST_LoRa, BUSY:BUSY_LoRa, IRQ:DIO0 };
 
-SkipjackSX126x SX126x(bus, [] (char* sz) { Serial.println(sz); });
+Skipjack::SX126x SX126x(bus, [] (char* sz) { Serial.println(sz); });
 
 char printf_buf[600]; // 512 or so is hex dump of longest packet
 
@@ -35,7 +35,7 @@ void setup()
   Serial.begin(115200);
   delay(100);
 
-  SkipjackSX126xConfig rc;
+  Skipjack::SX126xConfig rc;
   auto ok = rc.ChangeConfig("meshtastic/long-fast");
   assert(ok);
 
@@ -49,7 +49,7 @@ void setup()
   ms_quantum = rc.msTimeOnAir(16);
   Serial.printf("Polling quantum %dms\n", ms_quantum);
 
-  Display.printf("F %.3f B %.1f\n", rc.frequency_Mhz, (float)SkipjackSX126xConfig::bandwidth_hz[rc.bw_idx] / 1e3f);
+  Display.printf("F %.3f B %.1f\n", rc.frequency_Mhz, (float)Skipjack::SX126xConfig::bandwidth_hz[rc.bw_idx] / 1e3f);
   Display.printf("SF %i TXP %i dBm\n", rc.sf_value, rc.tx_power_dbm);
 
   SX126x.begin(rc); // should be last inside setup()
@@ -66,7 +66,7 @@ void loop()
   auto scount = SX126x.count_status_bytes();
   auto pcount = SX126x.count_packet_bytes();
 
-  if( (scount==0) && (pcount==0) && !CheckTimerExpired(ms_update, ms_now, 1000) ) return;
+  if( (scount==0) && (pcount==0) && !Skipjack::CheckTimerExpired(ms_update, ms_now, 1000) ) return;
   char* p = 0;
 
   auto putchar = [&] (char ch) { *(p++) = ch; if(((++display_col)&0x0F)==0x0F) *(p++) = '\n'; };
