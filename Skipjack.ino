@@ -7,15 +7,14 @@
 #include <SSD1306Wire.h>
 #include <OLEDDisplayUi.h>
 
+#include "Skipjack.h"
 #include "SkipjackSX126x.h"
 
 SSD1306Wire Display(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
 
 BUSConfig bus = { NSS:SS, RESET:RST_LoRa, BUSY:BUSY_LoRa, IRQ:DIO0 };
 
-SkipjackSX126xConfig rc = SkipjackSX126x::MakeConfig("meshtastic/long-fast");
-
-SkipjackSX126x SX126x(bus, rc, [] (char* sz) { Serial.println(sz); });
+SkipjackSX126x SX126x(bus, [] (char* sz) { Serial.println(sz); });
 
 char printf_buf[600]; // 512 or so is hex dump of longest packet
 
@@ -36,20 +35,24 @@ void setup()
   Serial.begin(115200);
   delay(100);
 
-  Serial.printf("msTimeOnAir tests (work in progress)\n");
-  Serial.printf("TOA25  %dms\n", SX126x.msTimeOnAir(25));
-  Serial.printf("TOA50  %dms\n", SX126x.msTimeOnAir(50));
-  Serial.printf("TOA99  %dms\n", SX126x.msTimeOnAir(99));
-  Serial.printf("TOA150 %dms\n", SX126x.msTimeOnAir(150));
-  Serial.printf("TOA200 %dms\n", SX126x.msTimeOnAir(200));
+  SkipjackSX126xConfig rc;
+  auto ok = rc.ChangeConfig("meshtastic/long-fast");
+  assert(ok);
 
-  ms_quantum = SX126x.msTimeOnAir(16);
+  Serial.printf("msTimeOnAir tests (work in progress)\n");
+  Serial.printf("TOA25  %dms\n", rc.msTimeOnAir(25));
+  Serial.printf("TOA50  %dms\n", rc.msTimeOnAir(50));
+  Serial.printf("TOA99  %dms\n", rc.msTimeOnAir(99));
+  Serial.printf("TOA150 %dms\n", rc.msTimeOnAir(150));
+  Serial.printf("TOA200 %dms\n", rc.msTimeOnAir(200));
+
+  ms_quantum = rc.msTimeOnAir(16);
   Serial.printf("Polling quantum %dms\n", ms_quantum);
 
   Display.printf("F %.3f B %.1f\n", rc.frequency_Mhz, (float)SkipjackSX126xConfig::bandwidth_hz[rc.bw_idx] / 1e3f);
   Display.printf("SF %i TXP %i dBm\n", rc.sf_value, rc.tx_power_dbm);
 
-  SX126x.begin(); // should be last inside setup()
+  SX126x.begin(rc); // should be last inside setup()
 }
 
 uint32_t ms_update = 0;

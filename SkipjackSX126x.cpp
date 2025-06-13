@@ -170,14 +170,11 @@ struct SkipjackSX126x::Impl
 
   /////////////////
 
-  Impl(BUSConfig bus, SkipjackSX126xConfig rc, std::function<void(char*)> debug_printlnFn_);
-  void begin();
+  Impl(BUSConfig bus, std::function<void(char*)> debug_printlnFn_);
+  void begin(SkipjackSX126xConfig rc);
 
   void Status_Debug(char* context);
   inline bool Status_OK() { return ((status_err == 0) && (status.cmd != (SX126X_STATUS_CMD_FAILED >> 1))); }
-
-  bool LDORecomended() const;
-  uint32_t msTimeOnAir(uint8_t len) const;
 
   void SPIBegin();
   void SPIEnd();
@@ -195,10 +192,9 @@ static void isr_trampoline()
 
 /////////////
 
-SkipjackSX126x::Impl::Impl(BUSConfig bus_, SkipjackSX126xConfig rc_, std::function<void(char*)> debug_printlnFn_)
+SkipjackSX126x::Impl::Impl(BUSConfig bus_, std::function<void(char*)> debug_printlnFn_)
 {
   bus = bus_;
-  rc = rc_;
   debug_printlnFn = debug_printlnFn_;
   pInstance = this;
 
@@ -212,8 +208,10 @@ SkipjackSX126x::Impl::Impl(BUSConfig bus_, SkipjackSX126xConfig rc_, std::functi
   pinMode(bus.IRQ, INPUT);
 }
 
-void SkipjackSX126x::Impl::begin()
+void SkipjackSX126x::Impl::begin(SkipjackSX126xConfig rc_)
 {
+  rc = rc_;
+
   ////////////////////////////////
   // SX126x initialization
   // All this seems to be very order sensitive. And while some orderings are specified in [S1]
@@ -402,7 +400,7 @@ void SkipjackSX126x::Impl::begin()
     SPI.write(rc.sf_value);
     SPI.write(rc.bw_idx);
     SPI.write(rc.cr_index);
-    SPI.write(LDORecomended() ? 0x01 : 0x00); // [S1] p40
+    SPI.write(rc.LDORecomended() ? 0x01 : 0x00); // [S1] p40
   SPIEnd();
   if(rc.bw_idx == SX126X_LORA_BW_500_0)
     Errata_15_1_2();
@@ -508,7 +506,7 @@ void SkipjackSX126x::Impl::begin()
     for(uint16_t i = 0; i < 10; i++)
       /*status_byte =*/ SPI.transfer(0xFF); // 0xFF is placeholder
   SPIEnd();
-  uint32_t ms64_tx = msTimeOnAir(10) << 6;
+  uint32_t ms64_tx = rc.msTimeOnAir(10) << 6;
   SPIBegin();
     SPI.write(SX126X_CMD_SET_TX); // [S1] p74
     SPI.write((uint8_t)(ms64_tx >> 16));
@@ -531,39 +529,6 @@ void SkipjackSX126x::Impl::begin()
     SPI.write16(SX126X_IRQ_NONE);
     SPI.write16(SX126X_IRQ_NONE);
   SPIEnd();
-}
-
-bool SkipjackSX126x::Impl::LDORecomended() const
-{
-  // enable LDO when symbol time is >= 16.38ms
-  // [S1] p40, p90
-  uint32_t msPerSym_64ths = msPerSymTable_64ths[11 * rc.sf_value + rc.bw_idx];
-  return (msPerSym_64ths >> 6) > 16 ? true : false;
-}
-
-uint32_t SkipjackSX126x::Impl::msTimeOnAir(uint8_t len) const
-{
-  // this might slightly underestimate the time, but not by more than 10% it seems
-  // fixed point version
-  uint32_t codingRate = rc.cr_index + 4;
-  uint32_t bitsInHeader = rc.header_type == SX126X_LORA_HEADER_EXPLICIT ? 20 : 0;
-  uint32_t bitsInCRC = (rc.crc_option == SX126X_LORA_CRC_ON) ? 16 : 0;
-  uint32_t bitsPerSym = (LDORecomended() ? rc.sf_value - 2 : rc.sf_value);
-
-  uint32_t symPerBit_4096ths = symPerBitTable_4096ths[ bitsPerSym ];
-  uint32_t msPerSym_64ths = msPerSymTable_64ths[11 * rc.sf_value + rc.bw_idx];
-
-  uint32_t bitsOfPayload = 8 + (len << 3) + bitsInCRC + bitsInHeader;
-  uint32_t bitsPayloadCompression = rc.sf_value << 2;
-  if (bitsPayloadCompression > bitsOfPayload) bitsOfPayload=0; else bitsOfPayload -= bitsPayloadCompression;
-
-  uint32_t symInPayload_4 = (bitsOfPayload * codingRate * symPerBit_4096ths) >> 12;
-
-  uint32_t msOnAir_64ths = 8 /*symOverhead*/ * msPerSym_64ths;
-  msOnAir_64ths += (rc.preamble_syms + 4) * msPerSym_64ths + (msPerSym_64ths >> 2); // preamble
-  msOnAir_64ths += ((symInPayload_4 * msPerSym_64ths) >> 2) + (msPerSym_64ths << 3/*+8 but was 4*/); // payload
-
-  return msOnAir_64ths >> 6;
 }
 
 void SkipjackSX126x::Impl::Status_Debug(char* context)
@@ -760,51 +725,84 @@ void SkipjackSX126x::Impl::SX126xISR()
 
 //////////////////////////
 
-SkipjackSX126x::SkipjackSX126x(BUSConfig bus, SkipjackSX126xConfig rc, std::function<void(char*)> debug_printlnFn)
-  { pImpl = new SkipjackSX126x::Impl(bus, rc, debug_printlnFn); }
-void SkipjackSX126x::begin() { pImpl->begin(); }
-uint32_t SkipjackSX126x::msTimeOnAir(uint8_t len) const { return pImpl->msTimeOnAir(len); }
+SkipjackSX126x::SkipjackSX126x(BUSConfig bus, std::function<void(char*)> debug_printlnFn)
+  { pImpl = new SkipjackSX126x::Impl(bus, debug_printlnFn); }
+void SkipjackSX126x::begin(SkipjackSX126xConfig rc) { pImpl->begin(rc); }
+
 uint16_t SkipjackSX126x::count_packet_bytes() { return pImpl->isr_packet_ring.count(); }
 uint8_t SkipjackSX126x::read_packet_byte() { return pImpl->isr_packet_ring.read(); }
+
 uint16_t SkipjackSX126x::count_status_bytes() { return pImpl->isr_status_ring.count(); }
 uint8_t SkipjackSX126x::read_status_byte() { return pImpl->isr_status_ring.read(); }
 
-SkipjackSX126xConfig SkipjackSX126x::MakeConfig(const char* config)
+//////////////////////////
+
+static const SkipjackSX126xConfig long_fast_20 =
+{
+  frequency_Mhz: 926.75f, bw_idx:SX126X_LORA_BW_500_0, sf_value:7, cr_index:SX126X_LORA_CR_4_5,
+
+  header_type:SX126X_LORA_HEADER_EXPLICIT,
+  preamble_syms:16, // meshtastic wiki say 16 [M2], code says other things [M1]
+  sync_word:0x24b4,
+  crc_option:SX126X_LORA_CRC_ON,
+
+  // per antirez application code, we will use infinite timeout
+  rx_timeout_sym:SX126X_RX_TIMEOUT_INF, // 0 or -1 or 100 (lora standard per sz127x series docs?)
+
+  tx_power_dbm: -22, tx_ramp_idx:SX126X_PA_RAMP_200U, iq_option:SX126X_LORA_IQ_STANDARD,
+  gain_boosted:true, cad_moresensitive:true, osc_tcxo:true
+};
+
+bool SkipjackSX126xConfig::ChangeConfig(const char* config)
 {
   if(strcmp(config,"meshtastic/short-turbo")==0)
+  {
+    *this = long_fast_20;
     // meshtastic short-turbo settings in slot50
-    return
-    {
-      frequency_Mhz: 926.75f, bw_idx:SX126X_LORA_BW_500_0, sf_value:7, cr_index:SX126X_LORA_CR_4_5,
-
-      header_type:SX126X_LORA_HEADER_EXPLICIT,
-      preamble_syms:16, // meshtastic wiki say 16 [M2], code says other things [M1]
-      sync_word:0x24b4,
-      crc_option:SX126X_LORA_CRC_ON,
-
-      // per antirez application code, we will use infinite timeout
-      rx_timeout_sym:SX126X_RX_TIMEOUT_INF, // 0 or -1 or 100 (lora standard per sz127x series docs?)
-
-      tx_power_dbm: -22, tx_ramp_idx:SX126X_PA_RAMP_200U, iq_option:SX126X_LORA_IQ_STANDARD,
-      gain_boosted:true, cad_moresensitive:true, osc_tcxo:true
-    };
+    this->frequency_Mhz = 926.75f;
+    this->bw_idx = SX126X_LORA_BW_500_0;
+    this->sf_value = 7;
+    return true;
+  }
   else if(strcmp(config,"meshtastic/long-fast")==0)
+  {
     // meshtastic long-fast settings in slot20
-    return
-    {
-      frequency_Mhz: 906.875f, bw_idx:SX126X_LORA_BW_250_0, sf_value:11, cr_index:SX126X_LORA_CR_4_5,
-
-      header_type:SX126X_LORA_HEADER_EXPLICIT,
-      preamble_syms:16, // meshtastic wiki say 16 [M2], code says other things [M1]
-      sync_word:0x24b4,
-      crc_option:SX126X_LORA_CRC_ON,
-
-      // per antirez application code, we will use infinite timeout
-      rx_timeout_sym:SX126X_RX_TIMEOUT_INF, // 0 or -1 or 100 (lora standard per sz127x series docs?)
-
-      tx_power_dbm: -22, tx_ramp_idx:SX126X_PA_RAMP_200U, iq_option:SX126X_LORA_IQ_STANDARD,
-      gain_boosted:true, cad_moresensitive:true, osc_tcxo:true
-    };
+    *this = long_fast_20;
+    return true;
+  }
   else
-    return {};
+    return false;
+}
+
+bool SkipjackSX126xConfig::LDORecomended() const
+{
+  // enable LDO when symbol time is >= 16.38ms
+  // [S1] p40, p90
+  uint32_t msPerSym_64ths = msPerSymTable_64ths[11 * sf_value + bw_idx];
+  return (msPerSym_64ths >> 6) > 16 ? true : false;
+}
+
+uint32_t SkipjackSX126xConfig::msTimeOnAir(uint8_t len) const
+{
+  // this might slightly underestimate the time, but not by more than 10% it seems
+  // fixed point version
+  uint32_t codingRate = cr_index + 4;
+  uint32_t bitsInHeader = header_type == SX126X_LORA_HEADER_EXPLICIT ? 20 : 0;
+  uint32_t bitsInCRC = (crc_option == SX126X_LORA_CRC_ON) ? 16 : 0;
+  uint32_t bitsPerSym = (LDORecomended() ? sf_value - 2 : sf_value);
+
+  uint32_t symPerBit_4096ths = symPerBitTable_4096ths[ bitsPerSym ];
+  uint32_t msPerSym_64ths = msPerSymTable_64ths[11 * sf_value + bw_idx];
+
+  uint32_t bitsOfPayload = 8 + (len << 3) + bitsInCRC + bitsInHeader;
+  uint32_t bitsPayloadCompression = sf_value << 2;
+  if (bitsPayloadCompression > bitsOfPayload) bitsOfPayload=0; else bitsOfPayload -= bitsPayloadCompression;
+
+  uint32_t symInPayload_4 = (bitsOfPayload * codingRate * symPerBit_4096ths) >> 12;
+
+  uint32_t msOnAir_64ths = 8 /*symOverhead*/ * msPerSym_64ths;
+  msOnAir_64ths += (preamble_syms + 4) * msPerSym_64ths + (msPerSym_64ths >> 2); // preamble
+  msOnAir_64ths += ((symInPayload_4 * msPerSym_64ths) >> 2) + (msPerSym_64ths << 3/*+8 but was 4*/); // payload
+
+  return msOnAir_64ths >> 6;
 }

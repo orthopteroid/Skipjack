@@ -23,23 +23,24 @@ struct SkipjackSX126xConfig
     7'800, 15'600, 31'250, 62'500, 125'000, 250'000, 500'000, 0, 10'400, 20'800, 41'700
   };
 
+  // returns false if error
+  bool ChangeConfig(const char* config); // ie "long-fast" or "short-turbo"
+  
+  bool LDORecomended() const;
+  uint32_t msTimeOnAir(uint8_t len) const;
 };
 
 struct SkipjackSX126x
 {
-  SkipjackSX126x(BUSConfig bus, SkipjackSX126xConfig rc, std::function<void(char*)> printlnFn);
+  SkipjackSX126x(BUSConfig bus, std::function<void(char*)> printlnFn);
 
-  void begin();
-
-  uint32_t msTimeOnAir(uint8_t len) const;
+  void begin(SkipjackSX126xConfig rc);
 
   uint16_t count_packet_bytes();
   uint8_t read_packet_byte();
 
   uint16_t count_status_bytes();
   uint8_t read_status_byte();
-
-  static SkipjackSX126xConfig MakeConfig(const char* config); // ie "long-fast" or "short-turbo"
 
   // Hide the actual implementation from the calling code.
   // This makes the members here the 'interface' for other possible
