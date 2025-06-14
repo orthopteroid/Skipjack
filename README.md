@@ -22,7 +22,7 @@ Polling quantum 415ms
 
 Now the intitialization of the SX126x begins. Each line printed here is the chip status <chip mode> <command status> (consult SX126x docs for details) the error code and the line for the message. There are asserts in the code to ensure that the chip does not get in a bad state. When an assert fails the line will be printed here.
 
-You can see the chip mode proceeding from 2x (standby in 13 mhz oscillator mode) to 3x (standby in TCXO 33 mhz oscillator mode) to 5x (receiving mode).
+You can see the chip mode proceeding from 2x (standby in 13 mhz oscillator mode) to 3x (standby in TCXO 33 mhz oscillator mode) to 5x (receiving mode). You can also see the chip starts up with an error condition, which according to the specs is normal if a TCXO is fitted. The code detects this condition and clears the error accordingly. All of this is described in the code with annotations that point to the specs.
 
 ```
 status21 err020 X:\proj\Skipjack\SkipjackSX126x.cpp:241
@@ -48,7 +48,7 @@ Once the initialization is complete and the ISR is hooked, the display on the bo
 
 ![image](https://github.com/user-attachments/assets/7181cad3-b240-4d4e-827e-3673c4d531e5)
 
-At the same time the interrupt service routine is sending arriving packets that end up on the serial port via another stream. Each packet starts with a * and ends with a newline.
+At the same time the interrupt service routine is sending arriving packets that end up on the serial port via a stream (or a double buffer scheme in more up to date code). Each packet is printed starting with a * and ending with a newline.
 
 ```
 *FFFFFFFF44B3F693ADDEF3C8610800FC3716DA715E27212365A18A157A865DFD1F71A405A76904
