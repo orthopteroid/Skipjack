@@ -8,7 +8,7 @@
 #include <OLEDDisplayUi.h>
 
 #include "Skipjack.h"
-#include "SkipjackSX126x.h"
+#include "SX126x.h"
 
 SSD1306Wire Display(0x3c, SDA_OLED, SCL_OLED, GEOMETRY_128_64);
 

@@ -6,8 +6,8 @@
 #include <atomic>
 
 #include "Skipjack.h"
-#include "SkipjackSX126x.h"
 #include "SX126x.h"
+#include "SX126x_internal.h"
 
 ////////////////////////////////
 // [S1] Semtech DS.SX1261-2.W.APP (r2.2) "60852689.DS_SX1261_2 V2-2.pdf"
