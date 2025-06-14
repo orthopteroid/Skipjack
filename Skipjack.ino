@@ -82,9 +82,9 @@ void loop()
   if(pcount > 0)
   {
     memcpy(packet, SX126x.get_packet_buf().get_read_buffer(), pcount);
-    putchar('*');
+    *(p++) = '*';
     for(int i=0; i<pcount; i++) puthex(packet[i]);
-    putchar('\n'); putchar(0);
+    *(p++) = '\n'; *(p++) = 0;
     Serial.printf(printf_buf);
   }
 }
