@@ -1,6 +1,9 @@
 #ifndef _SX126X_H
 #define _SX126X_H
 
+// distilled from many sources, including:
+// https://os.mbed.com/teams/Semtech/code/SX126xLib//file/1e2345700991/sx126x.h/
+
 //return values
 #define ERR_NONE                        0
 #define ERR_PACKET_TOO_LONG             1
