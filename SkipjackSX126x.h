@@ -41,11 +41,8 @@ struct SX126x
 
   void begin(SX126xConfig rc);
 
-  uint16_t count_packet_bytes();
-  uint8_t read_packet_byte();
-
-  uint16_t count_status_bytes();
-  uint8_t read_status_byte();
+  DoubleBuffer<256>& get_packet_buf();
+  RingBuffer<32>& get_status_ring();
 
   // Hide the actual implementation from the calling code.
   // This makes the members here the 'interface' for other possible

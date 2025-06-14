@@ -155,9 +155,8 @@ struct SX126xImpl
   volatile std::atomic<bool> isr_header_valid = false;
 
   // fixed length buffers, long enough for...
-  uint8_t isr_packet_buf[256]; // ... the biggest packet
-  RingBuffer<9/*512 bytes*/> isr_packet_ring; // ... two big packets
-  RingBuffer<6/*64 bytes*/> isr_status_ring; // ... a reasonable number of status messages
+  RingBuffer<32> isr_status_ring; // ... a reasonable number of status messages
+  DoubleBuffer<256> isr_packet_buf;
 
   enum RadioStates {
       RadioStateStandby,
@@ -660,14 +659,14 @@ void SX126xImpl::SX126xISR()
       /*ruf*/SPI.transfer(SX126X_CMD_READ_BUFFER);
       /*status_byte =*/ SPI.transfer(packet_start);
       SPI.transfer(SX126X_CMD_NOP); // noop required
-      SPI.transferBytes(0, isr_packet_buf, packet_length);
+      SPI.transferBytes(0, isr_packet_buf.get_write_buffer(), packet_length);
     SPIEnd();
     if(!(status_irq & SX126X_IRQ_CRC_ERR))
     {
       isr_status_ring.write('|');
       isr_status_ring.write(hexchar[ packet_length >> 4 ]);
       isr_status_ring.write(hexchar[ packet_length & 0x0F ]);
-      isr_packet_ring.fill(isr_packet_buf, packet_length);
+      isr_packet_buf.write_complete(packet_length);
     }
   }
   else if (status_irq & SX126X_IRQ_TX_DONE)
@@ -733,11 +732,8 @@ SX126x::SX126x(BUSConfig bus, std::function<void(char*)> debug_printlnFn)
   { pImpl = new SX126xImpl(bus, debug_printlnFn); }
 void SX126x::begin(SX126xConfig rc) { pImpl->begin(rc); }
 
-uint16_t SX126x::count_packet_bytes() { return pImpl->isr_packet_ring.count(); }
-uint8_t SX126x::read_packet_byte() { return pImpl->isr_packet_ring.read(); }
-
-uint16_t SX126x::count_status_bytes() { return pImpl->isr_status_ring.count(); }
-uint8_t SX126x::read_status_byte() { return pImpl->isr_status_ring.read(); }
+DoubleBuffer<256>& SX126x::get_packet_buf() { return pImpl->isr_packet_buf; }
+RingBuffer<32>& SX126x::get_status_ring() { return pImpl->isr_status_ring; }
 
 //////////////////////////
 

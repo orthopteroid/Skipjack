@@ -58,13 +58,14 @@ void setup()
 uint32_t ms_update = 0;
 uint8_t display_col = 0;
 const char hexchar[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+uint8_t packet[256];
 
 void loop()
 {
   delay( ms_quantum );
   auto ms_now = millis();
-  auto scount = SX126x.count_status_bytes();
-  auto pcount = SX126x.count_packet_bytes();
+  auto scount = SX126x.get_status_ring().count();
+  auto pcount = SX126x.get_packet_buf().get_data_length();
 
   if( (scount==0) && (pcount==0) && !Skipjack::CheckTimerExpired(ms_update, ms_now, 1000) ) return;
   char* p = 0;
@@ -73,15 +74,16 @@ void loop()
   auto puthex = [&] (uint8_t u8) { *(p++) = hexchar[u8 >> 4]; *(p++) = hexchar[u8 & 15]; };
 
   p = printf_buf;
-  if(scount == 0) putchar('.'); else while(scount-- > 0) putchar(SX126x.read_status_byte());
+  if(scount == 0) putchar('.'); else while(scount-- > 0) putchar(SX126x.get_status_ring().read());
   putchar(0);
   Display.printf(printf_buf);
 
   p = printf_buf;
   if(pcount > 0)
   {
+    memcpy(packet, SX126x.get_packet_buf().get_read_buffer(), pcount);
     putchar('*');
-    for(int i=0; i<pcount; i++) puthex(SX126x.read_packet_byte());
+    for(int i=0; i<pcount; i++) puthex(packet[i]);
     putchar('\n'); putchar(0);
     Serial.printf(printf_buf);
   }
