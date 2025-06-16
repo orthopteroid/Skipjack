@@ -201,10 +201,6 @@ SX126xImpl::SX126xImpl(BUSConfig bus_, std::function<void(char*)> debug_printlnF
   debug_printlnFn = debug_printlnFn_;
   pInstance = this;
 
-  // to use CAD with fixed length packets air-time calculation is required
-  // [S1] p98, p118
-  cad = rc.cad_moresensitive ? cadHighPowerTable[rc.sf_value] : cadLowPowerTable[rc.sf_value];
-
   digitalWrite(bus.NSS, 1);   pinMode(bus.NSS, OUTPUT);
   digitalWrite(bus.RESET, 1); pinMode(bus.RESET, OUTPUT);
   pinMode(bus.BUSY, INPUT);
@@ -215,6 +211,10 @@ void SX126xImpl::begin(SX126xConfig rc_)
 {
   rc = rc_;
 
+  // to use CAD with fixed length packets air-time calculation is required
+  // [S1] p98, p118
+  cad = rc.cad_moresensitive ? cadHighPowerTable[rc.sf_value] : cadLowPowerTable[rc.sf_value];
+  
   ////////////////////////////////
   // SX126x initialization
   // All this seems to be very order sensitive. And while some orderings are specified in [S1]
