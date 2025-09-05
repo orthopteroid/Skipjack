@@ -275,7 +275,7 @@ void SX126xImpl::begin(SX126xConfig rc_)
     SPI.write(SX126X_CMD_SET_PA_CONFIG); // [S1] p81-82
     SPI.write(pac.dutycycle);
     SPI.write(pac.hpmax);
-    SPI.write(0); // 0=SX1262, 1=SX1261
+    SPI.write(1); // 0=SX1262, 1=SX1261
     SPI.write(SX126X_PA_CONFIG_PA_LUT);
   SPIEnd();
   STATUS_DEBUG();
