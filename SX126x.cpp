@@ -281,8 +281,8 @@ void SX126xImpl::begin(SX126xConfig rc_)
   STATUS_DEBUG();
   ASSERT_STATUS_OK();
 
-  struct TXLimit { int8_t mn; int8_t mx; } txLimitTable[] = {{-9,+22}, {-17,+14}};
-  TXLimit txLimit = txLimitTable[0]; // 0=SX1262, 1=SX1261
+  struct TXLimit { int8_t mn; int8_t mx; } txLimitTable[] = {{-17,+14}/*low power*/, {-9,+22}/*high power*/};
+  TXLimit txLimit = txLimitTable[0]; // low power
   SPIBegin();
     SPI.write(SX126X_CMD_SET_TX_PARAMS); // [S1] p89
     SPI.write(max(txLimit.mn, min(txLimit.mx,rc.tx_power_dbm)));
