@@ -25,23 +25,23 @@ Now the intitialization of the SX126x begins. Each line printed here is the chip
 You can see the chip mode proceeding from 2x (standby in 13 mhz oscillator mode) to 3x (standby in TCXO 33 mhz oscillator mode) to 5x (receiving mode). You can also see the chip starts up with an error condition, which according to the specs is normal if a TCXO is fitted. The code detects this condition and clears the error accordingly. All of this is described in the code with annotations that point to the specs.
 
 ```
-status21 err020 X:\proj\Skipjack\SkipjackSX126x.cpp:241
-status21 err020 X:\proj\Skipjack\SkipjackSX126x.cpp:248
-status21 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:259
-status21 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:280
-status21 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:290
-status21 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:304
-status21 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:321
-status21 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:330
-status31 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:356
-status31 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:367
+status21 err020 X:\proj\Skipjack\SX126x.cpp:242
+status21 err020 X:\proj\Skipjack\SX126x.cpp:249
+status21 err000 X:\proj\Skipjack\SX126x.cpp:260
+status21 err000 X:\proj\Skipjack\SX126x.cpp:281
+status21 err000 X:\proj\Skipjack\SX126x.cpp:291
+status21 err000 X:\proj\Skipjack\SX126x.cpp:305
+status21 err000 X:\proj\Skipjack\SX126x.cpp:322
+status21 err000 X:\proj\Skipjack\SX126x.cpp:331
+status31 err000 X:\proj\Skipjack\SX126x.cpp:357
+status31 err000 X:\proj\Skipjack\SX126x.cpp:368
 chip "SX1261 V2D 2D02"
-status31 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:383
-status31 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:440
+status31 err000 X:\proj\Skipjack\SX126x.cpp:384
+status31 err000 X:\proj\Skipjack\SX126x.cpp:441
 syncword 24B4
 setup complete
-status31 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:470
-status51 err000 X:\proj\Skipjack\SkipjackSX126x.cpp:490
+status31 err000 X:\proj\Skipjack\SX126x.cpp:471
+status51 err000 X:\proj\Skipjack\SX126x.cpp:491
 ```
 
 Once the initialization is complete and the ISR is hooked, the display on the board begins to show results from a status stream coming from the interrupt service routine. The contents of this stream are a bit cryptic without reading the code but the contents basically say that preambles and packets have been received. In the case below it detected a Preamble, a Valid header and Received a packet of length 0x27, twice (Meshtestic does perform multiple TX on packets so this is normal):
