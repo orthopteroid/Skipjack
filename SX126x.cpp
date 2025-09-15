@@ -609,7 +609,7 @@ void SX126xImpl::Errata_15_4_2()
     /*status_byte =*/SPI.transfer(SX126X_CMD_NOP);
     uint8_t r0736 = SPI.transfer(SX126X_CMD_NOP);
   SPIEnd();
-  if(rc.iq_option == SX126X_LORA_IQ_INVERTED) r0736 |= 0x04; else r0736 &= 0xFB;
+  if(rc.iq_option == SX126X_LORA_IQ_INVERTED) r0736 &= 0xFB; else r0736 |= 0x04;
   SPIBegin();
     SPI.transfer(SX126X_CMD_WRITE_REGISTER);
     /*status_byte*/SPI.transfer16(SX126X_REG_IQ_CONFIG);
